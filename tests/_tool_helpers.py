@@ -21,14 +21,14 @@ This keeps the existing one-test-per-tool pattern but removes the inline
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Callable, Coroutine, Iterable
 from typing import Any
 
 
 def make_fake_request(
     response: Any,
     capture: dict[str, Any] | None = None,
-) -> Callable[..., Awaitable[Any]]:
+) -> Callable[..., Coroutine[Any, Any, Any]]:
     """Return an async stub for ``make_intervals_request``.
 
     If ``capture`` is provided, the request's keyword arguments are recorded
@@ -51,7 +51,7 @@ def make_fake_request(
 
 def run_tool(
     monkeypatch: Any,
-    tool: Callable[..., Awaitable[str]],
+    tool: Callable[..., Coroutine[Any, Any, str]],
     module_path: str,
     kwargs: dict[str, Any],
     fake_response: Any,

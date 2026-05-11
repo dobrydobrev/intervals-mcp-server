@@ -21,25 +21,20 @@ Usage:
         $ python src/intervals_mcp_server/server.py
 
     MCP tools provided:
-        - get_activities
-        - get_activity_details
-        - get_activity_intervals
-        - get_activity_streams
-        - get_activity_messages
-        - add_activity_message
-        - get_events
-        - get_event_by_id
-        - add_or_update_event
-        - delete_event
-        - delete_events_by_date_range
-        - get_wellness_data
-        - get_custom_items
-        - get_custom_item_by_id
-        - create_custom_item
-        - update_custom_item
-        - delete_custom_item
+        Activities: get_activities, get_activity_details, get_activity_intervals,
+            get_activity_streams, get_activity_messages, add_activity_message.
+        Athlete state: get_athlete, update_athlete, get_athlete_profile,
+            get_training_plan, set_training_plan, apply_plan_changes,
+            get_fitness_model_events.
+        Sport settings: list_sport_settings, get_sport_settings,
+            create_sport_settings, update_sport_settings, apply_sport_settings.
+        Events: get_events, get_event_by_id, add_or_update_event, delete_event,
+            delete_events_by_date_range.
+        Wellness: get_wellness_data.
+        Custom items: get_custom_items, get_custom_item_by_id, create_custom_item,
+            update_custom_item, delete_custom_item.
 
-    See the README for more details on configuration and usage.
+    See README.md and docs/TOOLS.md for the full reference.
 """
 
 import logging
@@ -77,12 +72,28 @@ from intervals_mcp_server.tools.activities import (  # pylint: disable=wrong-imp
     get_activity_messages,
     get_activity_streams,
 )
+from intervals_mcp_server.tools.athlete import (  # pylint: disable=wrong-import-position  # noqa: E402
+    apply_plan_changes,
+    get_athlete,
+    get_athlete_profile,
+    get_fitness_model_events,
+    get_training_plan,
+    set_training_plan,
+    update_athlete,
+)
 from intervals_mcp_server.tools.events import (  # pylint: disable=wrong-import-position  # noqa: E402
     add_or_update_event,
     delete_event,
     delete_events_by_date_range,
     get_event_by_id,
     get_events,
+)
+from intervals_mcp_server.tools.sport_settings import (  # pylint: disable=wrong-import-position  # noqa: E402
+    apply_sport_settings,
+    create_sport_settings,
+    get_sport_settings,
+    list_sport_settings,
+    update_sport_settings,
 )
 from intervals_mcp_server.tools.wellness import get_wellness_data  # pylint: disable=wrong-import-position  # noqa: E402
 from intervals_mcp_server.tools.custom_items import (  # pylint: disable=wrong-import-position  # noqa: E402
@@ -115,6 +126,20 @@ __all__ = [
     "create_custom_item",
     "update_custom_item",
     "delete_custom_item",
+    # tools/athlete.py
+    "get_athlete",
+    "update_athlete",
+    "get_athlete_profile",
+    "get_training_plan",
+    "set_training_plan",
+    "apply_plan_changes",
+    "get_fitness_model_events",
+    # tools/sport_settings.py
+    "list_sport_settings",
+    "get_sport_settings",
+    "create_sport_settings",
+    "update_sport_settings",
+    "apply_sport_settings",
 ]
 
 

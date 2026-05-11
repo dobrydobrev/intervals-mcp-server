@@ -576,9 +576,13 @@ def format_athlete_summary(athlete: dict[str, Any]) -> str:
     ) or "Unknown"
     weight = athlete.get("icu_weight") or athlete.get("weight")
     types = athlete.get("icu_type_settings") or []
-    sports = ", ".join(
-        sorted({t.get("type") for t in types if isinstance(t, dict) and t.get("type")})
-    ) or "N/A"
+    sport_names: set[str] = set()
+    for entry in types:
+        if isinstance(entry, dict):
+            sport = entry.get("type")
+            if isinstance(sport, str) and sport:
+                sport_names.add(sport)
+    sports = ", ".join(sorted(sport_names)) or "N/A"
 
     return f"""Athlete: {name}
 ID: {_opt(athlete.get("id"))}

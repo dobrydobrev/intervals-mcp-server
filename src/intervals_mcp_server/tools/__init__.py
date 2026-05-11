@@ -14,12 +14,28 @@ from intervals_mcp_server.tools.activities import (  # noqa: F401
     get_activity_intervals,
     get_activity_streams,
 )
+from intervals_mcp_server.tools.athlete import (  # noqa: F401
+    apply_plan_changes,
+    get_athlete,
+    get_athlete_profile,
+    get_fitness_model_events,
+    get_training_plan,
+    set_training_plan,
+    update_athlete,
+)
 from intervals_mcp_server.tools.events import (  # noqa: F401
     add_or_update_event,
     delete_event,
     delete_events_by_date_range,
     get_event_by_id,
     get_events,
+)
+from intervals_mcp_server.tools.sport_settings import (  # noqa: F401
+    apply_sport_settings,
+    create_sport_settings,
+    get_sport_settings,
+    list_sport_settings,
+    update_sport_settings,
 )
 from intervals_mcp_server.tools.wellness import get_wellness_data  # noqa: F401
 
@@ -52,4 +68,18 @@ __all__ = [
     "delete_events_by_date_range",
     "add_or_update_event",
     "get_wellness_data",
+    # tools/athlete.py
+    "get_athlete",
+    "update_athlete",
+    "get_athlete_profile",
+    "get_training_plan",
+    "set_training_plan",
+    "apply_plan_changes",
+    "get_fitness_model_events",
+    # tools/sport_settings.py
+    "list_sport_settings",
+    "get_sport_settings",
+    "create_sport_settings",
+    "update_sport_settings",
+    "apply_sport_settings",
 ]

@@ -31,6 +31,8 @@ Usage:
         Workout library: list_workouts, get_workout, create_workout,
             update_workout, delete_workout.
         Folders / plans: list_folders, create_folder, update_folder, delete_folder.
+        Athlete curves: get_athlete_power_curves, get_athlete_hr_curves,
+            get_athlete_pace_curves, get_mmp_model.
         Events: get_events, get_event_by_id, add_or_update_event, delete_event,
             delete_events_by_date_range, bulk_create_events, mark_event_done,
             apply_plan_to_calendar, bulk_delete_events, duplicate_events,
@@ -76,6 +78,12 @@ from intervals_mcp_server.tools.activities import (  # pylint: disable=wrong-imp
     get_activity_intervals,
     get_activity_messages,
     get_activity_streams,
+)
+from intervals_mcp_server.tools.curves import (  # pylint: disable=wrong-import-position  # noqa: E402
+    get_athlete_hr_curves,
+    get_athlete_pace_curves,
+    get_athlete_power_curves,
+    get_mmp_model,
 )
 from intervals_mcp_server.tools.athlete import (  # pylint: disable=wrong-import-position  # noqa: E402
     apply_plan_changes,
@@ -184,6 +192,11 @@ __all__ = [
     "duplicate_events",
     "list_workout_tags",
     "list_event_tags",
+    # tools/curves.py
+    "get_athlete_power_curves",
+    "get_athlete_hr_curves",
+    "get_athlete_pace_curves",
+    "get_mmp_model",
 ]
 
 

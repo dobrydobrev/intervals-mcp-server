@@ -14,6 +14,12 @@ from intervals_mcp_server.tools.activities import (  # noqa: F401
     get_activity_intervals,
     get_activity_streams,
 )
+from intervals_mcp_server.tools.curves import (  # noqa: F401
+    get_athlete_hr_curves,
+    get_athlete_pace_curves,
+    get_athlete_power_curves,
+    get_mmp_model,
+)
 from intervals_mcp_server.tools.athlete import (  # noqa: F401
     apply_plan_changes,
     get_athlete,
@@ -121,4 +127,9 @@ __all__ = [
     "duplicate_events",
     "list_workout_tags",
     "list_event_tags",
+    # tools/curves.py
+    "get_athlete_power_curves",
+    "get_athlete_hr_curves",
+    "get_athlete_pace_curves",
+    "get_mmp_model",
 ]

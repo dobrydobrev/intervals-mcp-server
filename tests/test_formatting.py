@@ -6,16 +6,27 @@ These tests verify that the formatting functions produce expected output strings
 
 import json
 from intervals_mcp_server.utils.formatting import (
+    format_activity_search_hit,
     format_activity_summary,
     format_athlete_profile,
     format_athlete_summary,
+    format_best_efforts,
+    format_curve_set,
     format_event_details,
     format_event_summary,
     format_fitness_model_events,
+    format_hr_curve,
+    format_interval_match,
+    format_interval_stats,
     format_intervals,
+    format_mmp_model,
+    format_pace_curve,
+    format_power_curve,
+    format_power_vs_hr,
     format_sport_settings_details,
     format_sport_settings_summary,
     format_training_plan,
+    format_weather_summary,
     format_wellness_entry,
     format_workout,
 )
@@ -300,3 +311,138 @@ def test_format_sport_settings_details():
     assert "FTP: 280W" in out
     assert "VO2=120W" in out
     assert "Sweet spot: 88–94" in out
+
+
+CURVE_SAMPLE = {
+    "label": "1y",
+    "start_date_local": "2025-05-11",
+    "end_date_local": "2026-05-11",
+    "days": 365,
+    "secs": [1, 5, 15, 30, 60, 120, 300, 600, 1200, 3600],
+    "values": [1200, 1050, 800, 600, 450, 380, 320, 290, 270, 240],
+}
+
+
+def test_format_power_curve_summary():
+    out = format_power_curve(CURVE_SAMPLE, summary_only=True)
+    assert "[1y]" in out
+    # Spot-check a few coach-canonical buckets
+    assert "    1s: 1200W" in out
+    assert "   20m: 270W" in out
+    assert "    1h: 240W" in out
+
+
+def test_format_power_curve_full():
+    out = format_power_curve(CURVE_SAMPLE, summary_only=False)
+    # All 10 sample points appear
+    assert "    1s: 1200W" in out
+    assert "    2m: 380W" in out
+    assert out.count(":") >= 10
+
+
+def test_format_hr_curve():
+    curve = {"label": "all", "secs": [5, 30, 60, 300, 1200, 3600], "values": [180, 178, 175, 170, 160, 155]}
+    out = format_hr_curve(curve)
+    assert "[all]" in out
+    assert "180 bpm" in out
+
+
+def test_format_pace_curve_renders_min_per_km():
+    curve = {
+        "label": "1y",
+        "secs": [15, 60, 300, 1200, 3600],
+        "values": [6.5, 5.5, 4.5, 4.0, 3.5],
+    }
+    out = format_pace_curve(curve)
+    assert "m/s" in out
+    assert "/km" in out
+    # 4.5 m/s -> 3:42 /km
+    assert "3:42 /km" in out
+
+
+def test_format_curve_set_empty():
+    assert "No power curves" in format_curve_set([], "power")
+
+
+def test_format_curve_set_multi():
+    out = format_curve_set([CURVE_SAMPLE, CURVE_SAMPLE], "power")
+    assert "Power curves (2)" in out
+    assert out.count("[1y]") == 2
+
+
+def test_format_best_efforts_envelope():
+    payload = {
+        "efforts": [
+            {"duration": 60, "average": 350, "distance": 950.0},
+            {"duration": 300, "average": 290},
+        ]
+    }
+    out = format_best_efforts(payload)
+    assert "Best efforts (2)" in out
+    assert "1m: avg=350" in out
+    assert "5m: avg=290" in out
+
+
+def test_format_power_vs_hr_summary():
+    out = format_power_vs_hr(
+        {
+            "decoupling": 4.5,
+            "hr_values": list(range(120, 200, 2)),
+            "power_values": list(range(150, 350, 5)),
+        }
+    )
+    assert "Aerobic decoupling: 4.5" in out
+    # Down-sampled, so should not include every entry — keep count under 13
+    line_count = len([line for line in out.splitlines() if "bpm" in line])
+    assert 1 <= line_count <= 13
+
+
+def test_format_interval_stats():
+    out = format_interval_stats(
+        {
+            "id": "1",
+            "elapsed_time": 180,
+            "moving_time": 178,
+            "average_watts": 300,
+            "average_watts_kg": 4.5,
+            "weighted_average_watts": 315,
+            "intensity": 1.0,
+            "average_heartrate": 165,
+            "max_heartrate": 178,
+        }
+    )
+    assert "300 W" in out
+    assert "Avg HR: 165 bpm" in out
+
+
+def test_format_weather_summary():
+    out = format_weather_summary({"average_temp": 18, "min_temp": 12, "max_temp": 24, "average_humidity": 60})
+    assert "Avg temp: 18°" in out
+    assert "Humidity: 60%" in out
+
+
+def test_format_activity_search_hit_and_interval_match():
+    hit = format_activity_search_hit(
+        {"id": "a1", "start_date_local": "2026-01-15", "type": "Ride", "name": "Morning"}
+    )
+    assert "id=a1" in hit and "Morning" in hit
+    match = format_interval_match(
+        {"activity_id": "a1", "interval_index": 2, "duration": 300, "average_watts": 280}
+    )
+    assert "interval#2" in match and "280W" in match
+
+
+def test_format_mmp_model():
+    out = format_mmp_model(
+        {
+            "cp": 280,
+            "w_prime": 19000,
+            "p_max": 1100,
+            "ftp_est": 275,
+            "days": 90,
+            "start_date_local": "2026-02-10",
+            "end_date_local": "2026-05-11",
+        }
+    )
+    assert "CP: 280W" in out
+    assert "W': 19000 J" in out

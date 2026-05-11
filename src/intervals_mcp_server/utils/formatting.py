@@ -728,6 +728,234 @@ def format_sport_settings_details(settings: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+POWER_BUCKETS_SECS = [1, 5, 15, 30, 60, 120, 300, 600, 1200, 3600]
+HR_BUCKETS_SECS = [5, 30, 60, 300, 1200, 3600]
+PACE_BUCKETS_SECS = [15, 60, 300, 1200, 3600]
+
+
+def _human_duration(secs: int) -> str:
+    """Format a duration in seconds as a coach-readable label (e.g. '20m', '5s')."""
+    if secs < 60:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}m"
+    hours = secs // 3600
+    rem_min = (secs % 3600) // 60
+    return f"{hours}h" if rem_min == 0 else f"{hours}h{rem_min}m"
+
+
+def _pace_per_km(meters_per_sec: float) -> str:
+    """Convert m/s to a min/km label (e.g. '4:12 /km'). Returns '?' for non-positive."""
+    if not meters_per_sec or meters_per_sec <= 0:
+        return "?"
+    total_secs = 1000 / meters_per_sec
+    mins = int(total_secs // 60)
+    secs = int(round(total_secs - mins * 60))
+    if secs == 60:
+        mins += 1
+        secs = 0
+    return f"{mins}:{secs:02d} /km"
+
+
+def _downsample_pairs(
+    secs: list[int], values: list[Any], buckets: list[int]
+) -> list[tuple[int, Any]]:
+    """Pick the entry in `secs` closest to each bucket; emit (bucket, value) pairs."""
+    if not secs or not values:
+        return []
+    pairs: list[tuple[int, Any]] = []
+    for target in buckets:
+        # Find closest secs[] entry to target
+        best_idx = min(range(len(secs)), key=lambda i: abs(secs[i] - target))
+        if best_idx < len(values):
+            pairs.append((target, values[best_idx]))
+    return pairs
+
+
+def _curve_meta_line(curve: dict[str, Any]) -> str:
+    """Format a curve's label / date-range / activity-count line."""
+    label = curve.get("label") or curve.get("filter_label") or curve.get("id") or "?"
+    start = curve.get("start_date_local")
+    end = curve.get("end_date_local")
+    days = curve.get("days")
+    range_part = f" {start}..{end}" if start and end else ""
+    days_part = f"  ({days}d)" if days is not None else ""
+    return f"[{label}]{range_part}{days_part}"
+
+
+def _format_curve_generic(
+    curve: dict[str, Any],
+    buckets: list[int],
+    summary_only: bool,
+    unit: str,
+    value_renderer: Any = None,
+) -> str:
+    """Shared body for power/hr/pace single-curve formatters."""
+    secs = curve.get("secs") or []
+    values = curve.get("values") or []
+    if not isinstance(secs, list) or not isinstance(values, list):
+        return "(invalid curve)"
+    header = _curve_meta_line(curve)
+    if summary_only:
+        pairs = _downsample_pairs(secs, values, buckets)
+    else:
+        pairs = list(zip(secs, values, strict=False))
+    rendered: list[str] = [header]
+    for duration, value in pairs:
+        rendered_value = value_renderer(value) if value_renderer else f"{value}{unit}"
+        rendered.append(f"  {_human_duration(duration):>5}: {rendered_value}")
+    return "\n".join(rendered)
+
+
+def format_power_curve(curve: dict[str, Any], summary_only: bool = True) -> str:
+    """Format a single power curve. summary_only emits coach-canonical buckets."""
+    return _format_curve_generic(curve, POWER_BUCKETS_SECS, summary_only, "W")
+
+
+def format_hr_curve(curve: dict[str, Any], summary_only: bool = True) -> str:
+    """Format a single HR curve."""
+    return _format_curve_generic(curve, HR_BUCKETS_SECS, summary_only, " bpm")
+
+
+def format_pace_curve(curve: dict[str, Any], summary_only: bool = True) -> str:
+    """Format a single pace curve. Values are m/s; rendered as min/km."""
+    return _format_curve_generic(
+        curve, PACE_BUCKETS_SECS, summary_only, " m/s",
+        value_renderer=lambda v: f"{v} m/s ({_pace_per_km(v)})",
+    )
+
+
+def format_curve_set(
+    curves: list[dict[str, Any]],
+    curve_type: str,
+    summary_only: bool = True,
+) -> str:
+    """Format a DataCurveSet (list of curves). curve_type ∈ {"power","hr","pace"}."""
+    if not curves:
+        return f"No {curve_type} curves in this range.\n"
+    formatter = {
+        "power": format_power_curve,
+        "hr": format_hr_curve,
+        "pace": format_pace_curve,
+    }.get(curve_type, format_power_curve)
+    blocks = [
+        f"{curve_type.capitalize()} curves ({len(curves)}):",
+        "",
+    ]
+    for curve in curves:
+        if isinstance(curve, dict):
+            blocks.append(formatter(curve, summary_only))
+            blocks.append("")
+    return "\n".join(blocks)
+
+
+def format_best_efforts(payload: dict[str, Any] | list[dict[str, Any]]) -> str:
+    """Format the activity best-efforts response.
+
+    Accepts either a raw list or the BestEfforts {"efforts": [...]} envelope.
+    """
+    if isinstance(payload, dict):
+        efforts = payload.get("efforts") or []
+    elif isinstance(payload, list):
+        efforts = payload
+    else:
+        efforts = []
+    if not efforts:
+        return "No best efforts in this activity.\n"
+    lines = [f"Best efforts ({len(efforts)}):", ""]
+    for effort in efforts:
+        if not isinstance(effort, dict):
+            continue
+        duration = effort.get("duration") or 0
+        avg = effort.get("average", "?")
+        distance = effort.get("distance")
+        dist_part = f"  dist={distance}m" if distance else ""
+        lines.append(f"  {_human_duration(duration):>5}: avg={avg}{dist_part}")
+    return "\n".join(lines) + "\n"
+
+
+def format_power_vs_hr(data: dict[str, Any], summary_only: bool = True) -> str:
+    """Format the activity power-vs-HR response.
+
+    Expects fields like hr_values[] and power_values[] (paired by index) and
+    optionally `decoupling`. summary_only collapses to ~10 hr buckets.
+    """
+    hr_values = data.get("hr_values") or data.get("hr") or []
+    power_values = data.get("power_values") or data.get("power") or []
+    decoupling = data.get("decoupling")
+    lines = []
+    if decoupling is not None:
+        lines.append(f"Aerobic decoupling: {decoupling}")
+    if not isinstance(hr_values, list) or not isinstance(power_values, list):
+        lines.append("(no paired HR/power data)")
+        return "\n".join(lines) + "\n"
+    pairs = list(zip(hr_values, power_values, strict=False))
+    if summary_only and len(pairs) > 12:
+        step = max(1, len(pairs) // 10)
+        pairs = pairs[::step][:12]
+    lines.append("HR vs Power:")
+    for hr, power in pairs:
+        lines.append(f"  {hr} bpm  →  {power} W")
+    return "\n".join(lines) + "\n"
+
+
+def format_interval_stats(stats: dict[str, Any]) -> str:
+    """Format the interval-stats response (an Interval record)."""
+    return f"""Interval stats:
+ID: {_opt(stats.get('id'))}
+Duration: {_opt(stats.get('elapsed_time'), ' s')} (moving: {_opt(stats.get('moving_time'), ' s')})
+Distance: {_opt(stats.get('distance'), ' m')}
+Avg power: {_opt(stats.get('average_watts'), ' W')} (w/kg {_opt(stats.get('average_watts_kg'))})
+NP/IF: {_opt(stats.get('weighted_average_watts'))} W / {_opt(stats.get('intensity'))}
+Avg HR: {_opt(stats.get('average_heartrate'), ' bpm')} max {_opt(stats.get('max_heartrate'), ' bpm')}
+Avg speed: {_opt(stats.get('average_speed'), ' m/s')}
+Avg cadence: {_opt(stats.get('average_cadence'), ' rpm')}
+Elevation gain: {_opt(stats.get('total_elevation_gain'), ' m')}
+"""
+
+
+def format_weather_summary(weather: dict[str, Any]) -> str:
+    """Format the activity weather-summary response."""
+    return f"""Weather summary:
+Avg temp: {_opt(weather.get('average_temp'), '°')} (min {_opt(weather.get('min_temp'), '°')}, max {_opt(weather.get('max_temp'), '°')})
+Apparent temp: avg {_opt(weather.get('average_feels_like'), '°')}
+Humidity: {_opt(weather.get('average_humidity'), '%')}
+Precipitation: {_opt(weather.get('total_precipitation'), ' mm')}
+Solar (UV): {_opt(weather.get('average_uv'))}
+"""
+
+
+def format_activity_search_hit(hit: dict[str, Any]) -> str:
+    """Format one row of the search-full response."""
+    return (
+        f"- id={hit.get('id', '?')}  "
+        f"{hit.get('start_date_local', hit.get('startTime', '?'))}  "
+        f"{hit.get('type', '?')}  {hit.get('name', 'Unnamed')!r}"
+    )
+
+
+def format_interval_match(match: dict[str, Any]) -> str:
+    """Format one row of the interval-search response."""
+    return (
+        f"- activity={match.get('activity_id', '?')}  "
+        f"interval#{match.get('interval_index', '?')}  "
+        f"dur={_human_duration(match.get('duration', 0) or 0)}  "
+        f"power={match.get('average_watts', '?')}W"
+    )
+
+
+def format_mmp_model(model: dict[str, Any]) -> str:
+    """Format the MMP / power-duration model used for resolving %MMP steps."""
+    return f"""MMP model:
+CP: {_opt(model.get('cp'), 'W')}  (FTP est: {_opt(model.get('ftp_est'), 'W')})
+W': {_opt(model.get('w_prime'), ' J')}
+Pmax: {_opt(model.get('p_max'), 'W')}
+Tau: {_opt(model.get('tau'))}
+Days used: {_opt(model.get('days'))}
+Date range: {_opt(model.get('start_date_local'))} .. {_opt(model.get('end_date_local'))}
+"""
+
+
 def format_folder_summary(folders: list[dict[str, Any]]) -> str:
     """Format a list of workout folders / plans."""
     if not folders:

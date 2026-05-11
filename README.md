@@ -247,14 +247,22 @@ The `mcp install` command may fail on Windows due to environment or permission i
 
 ### 2. Use the MCP server with Claude
 
-Once the server is running and Claude Desktop is configured, you can use the following tools to ask questions about your past and future activities, events, and wellness data.
+Once the server is running and Claude Desktop is configured, you can use the
+tools below to ask Claude about activities, events, and wellness data — and to
+let Claude act as a coaching agent that prescribes plans, logs wellness, and
+analyses your performance. The list below shows the tools you'll reach for
+first; the full reference (60+ tools grouped by module) lives in
+[`docs/TOOLS.md`](docs/TOOLS.md).
 
-- `get_activities`: Retrieve a list of activities
-- `get_activity_details`: Get detailed information for a specific activity
-- `get_activity_intervals`: Get detailed interval data for a specific activity
-- `get_wellness_data`: Fetch wellness data
-- `get_events`: Retrieve upcoming events (workouts, races, etc.)
-- `get_event_by_id`: Get detailed information for a specific event
+Starting points:
+
+- `get_activities`, `get_activity_details`, `get_activity_intervals` — explore past activities.
+- `get_events`, `add_or_update_event`, `bulk_create_events`, `mark_event_done` — plan workouts on the calendar.
+- `get_wellness_data`, `get_wellness_day`, `set_wellness_day` — read or log daily wellness.
+- `get_athlete`, `get_athlete_profile`, `list_sport_settings` — read the athlete and zones.
+- `list_workouts`, `create_workout`, `list_folders`, `create_folder` — manage the workout library.
+- `get_athlete_power_curves`, `get_mmp_model`, `get_activity_best_efforts` — analyse performance (curves default to coach-canonical buckets — pass `summary_only=False` for full data).
+- `search_activities`, `interval_search_activities` — find past sessions by name, tag, or interval characteristics.
 
 ## Usage with ChatGPT
 

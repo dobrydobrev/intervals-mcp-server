@@ -374,3 +374,208 @@ async def _create_or_update_event_request(
     )
     action = "updated" if event_id else "created"
     return _handle_event_response(result, action, athlete_id, start_date)
+
+
+@mcp.tool()
+async def bulk_create_events(
+    events: list[dict[str, Any]],
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """Create multiple events on the athlete's calendar in one request.
+
+    Args:
+        events: List of event dicts matching the Intervals.icu EventEx shape.
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/events/bulk",
+        api_key=api_key,
+        method="POST",
+        data=events,  # type: ignore[arg-type]
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error creating events: {result.get('message')}"
+    created = result if isinstance(result, list) else []
+    if not created:
+        return f"Created {len(events)} events for athlete {athlete_id_to_use} (no response detail)."
+    lines = [f"Created {len(created)} events:", ""]
+    for event in created[:5]:
+        if isinstance(event, dict):
+            lines.append("- " + format_event_summary(event).strip())
+    if len(created) > 5:
+        lines.append(f"... and {len(created) - 5} more.")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def mark_event_done(
+    event_id: str,
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """Mark a planned workout as done (creates a matching manual activity).
+
+    Args:
+        event_id: Intervals.icu event ID.
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/events/{event_id}/mark-done",
+        api_key=api_key,
+        method="POST",
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error marking event done: {result.get('message')}"
+    if isinstance(result, dict):
+        return (
+            f"Event {event_id} marked done; "
+            f"created activity id={result.get('id', 'N/A')}."
+        )
+    return f"Event {event_id} marked done."
+
+
+@mcp.tool()
+async def apply_plan_to_calendar(
+    payload: dict[str, Any],
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """Stamp a saved plan onto the athlete's calendar.
+
+    Args:
+        payload: Dict matching the Intervals.icu ApplyPlanDTO shape
+            (e.g. {"folder_id": 99, "start_date_local": "2026-02-01"}).
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/events/apply-plan",
+        api_key=api_key,
+        method="POST",
+        data=payload,
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error applying plan: {result.get('message')}"
+    return f"Plan applied to calendar for athlete {athlete_id_to_use}."
+
+
+@mcp.tool()
+async def bulk_delete_events(
+    event_ids: list[int],
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """Delete a list of events by id.
+
+    Args:
+        event_ids: Intervals.icu event IDs (integers) to delete.
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+    if not event_ids:
+        return "Error: no event ids provided."
+
+    payload = [{"id": eid} for eid in event_ids]
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/events/bulk-delete",
+        api_key=api_key,
+        method="PUT",
+        data=payload,  # type: ignore[arg-type]
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error deleting events: {result.get('message')}"
+    return f"Deleted {len(event_ids)} events for athlete {athlete_id_to_use}."
+
+
+@mcp.tool()
+async def duplicate_events(
+    payload: dict[str, Any],
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """Duplicate one or more events on the calendar.
+
+    Args:
+        payload: Dict matching the Intervals.icu DuplicateEventsDTO shape (source
+            event ids + target date offset).
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/duplicate-events",
+        api_key=api_key,
+        method="POST",
+        data=payload,
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error duplicating events: {result.get('message')}"
+    created = result if isinstance(result, list) else []
+    return f"Duplicated {len(created)} events for athlete {athlete_id_to_use}."
+
+
+@mcp.tool()
+async def list_workout_tags(
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """List all tags that have been applied to workouts in the athlete's library.
+
+    Args:
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    return await _fetch_tag_list(athlete_id, api_key, "workout-tags", "workout")
+
+
+@mcp.tool()
+async def list_event_tags(
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """List all tags that have been applied to events on the athlete's calendar.
+
+    Args:
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    return await _fetch_tag_list(athlete_id, api_key, "event-tags", "event")
+
+
+async def _fetch_tag_list(
+    athlete_id: str | None, api_key: str | None, endpoint: str, label: str
+) -> str:
+    """Shared body for the tag-listing tools."""
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/{endpoint}", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching {label} tags: {result.get('message')}"
+    tags = result if isinstance(result, list) else []
+    if not tags:
+        return f"No {label} tags for athlete {athlete_id_to_use}.\n"
+    return f"{label.capitalize()} tags ({len(tags)}): " + ", ".join(str(t) for t in tags)

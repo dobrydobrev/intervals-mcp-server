@@ -32,7 +32,9 @@ Usage:
             update_workout, delete_workout.
         Folders / plans: list_folders, create_folder, update_folder, delete_folder.
         Events: get_events, get_event_by_id, add_or_update_event, delete_event,
-            delete_events_by_date_range.
+            delete_events_by_date_range, bulk_create_events, mark_event_done,
+            apply_plan_to_calendar, bulk_delete_events, duplicate_events,
+            list_workout_tags, list_event_tags.
         Wellness: get_wellness_data.
         Custom items: get_custom_items, get_custom_item_by_id, create_custom_item,
             update_custom_item, delete_custom_item.
@@ -86,10 +88,17 @@ from intervals_mcp_server.tools.athlete import (  # pylint: disable=wrong-import
 )
 from intervals_mcp_server.tools.events import (  # pylint: disable=wrong-import-position  # noqa: E402
     add_or_update_event,
+    apply_plan_to_calendar,
+    bulk_create_events,
+    bulk_delete_events,
     delete_event,
     delete_events_by_date_range,
+    duplicate_events,
     get_event_by_id,
     get_events,
+    list_event_tags,
+    list_workout_tags,
+    mark_event_done,
 )
 from intervals_mcp_server.tools.folders import (  # pylint: disable=wrong-import-position  # noqa: E402
     create_folder,
@@ -167,6 +176,14 @@ __all__ = [
     "create_folder",
     "update_folder",
     "delete_folder",
+    # tools/events.py additions
+    "bulk_create_events",
+    "mark_event_done",
+    "apply_plan_to_calendar",
+    "bulk_delete_events",
+    "duplicate_events",
+    "list_workout_tags",
+    "list_event_tags",
 ]
 
 

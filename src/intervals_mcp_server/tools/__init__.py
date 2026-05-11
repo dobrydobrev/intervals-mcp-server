@@ -30,6 +30,12 @@ from intervals_mcp_server.tools.events import (  # noqa: F401
     get_event_by_id,
     get_events,
 )
+from intervals_mcp_server.tools.folders import (  # noqa: F401
+    create_folder,
+    delete_folder,
+    list_folders,
+    update_folder,
+)
 from intervals_mcp_server.tools.sport_settings import (  # noqa: F401
     apply_sport_settings,
     create_sport_settings,
@@ -38,6 +44,13 @@ from intervals_mcp_server.tools.sport_settings import (  # noqa: F401
     update_sport_settings,
 )
 from intervals_mcp_server.tools.wellness import get_wellness_data  # noqa: F401
+from intervals_mcp_server.tools.workouts import (  # noqa: F401
+    create_workout,
+    delete_workout,
+    get_workout,
+    list_workouts,
+    update_workout,
+)
 
 
 def register_tools(mcp_instance: FastMCP) -> None:
@@ -82,4 +95,15 @@ __all__ = [
     "create_sport_settings",
     "update_sport_settings",
     "apply_sport_settings",
+    # tools/workouts.py
+    "list_workouts",
+    "get_workout",
+    "create_workout",
+    "update_workout",
+    "delete_workout",
+    # tools/folders.py
+    "list_folders",
+    "create_folder",
+    "update_folder",
+    "delete_folder",
 ]

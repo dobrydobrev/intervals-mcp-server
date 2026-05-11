@@ -28,6 +28,9 @@ Usage:
             get_fitness_model_events.
         Sport settings: list_sport_settings, get_sport_settings,
             create_sport_settings, update_sport_settings, apply_sport_settings.
+        Workout library: list_workouts, get_workout, create_workout,
+            update_workout, delete_workout.
+        Folders / plans: list_folders, create_folder, update_folder, delete_folder.
         Events: get_events, get_event_by_id, add_or_update_event, delete_event,
             delete_events_by_date_range.
         Wellness: get_wellness_data.
@@ -88,6 +91,12 @@ from intervals_mcp_server.tools.events import (  # pylint: disable=wrong-import-
     get_event_by_id,
     get_events,
 )
+from intervals_mcp_server.tools.folders import (  # pylint: disable=wrong-import-position  # noqa: E402
+    create_folder,
+    delete_folder,
+    list_folders,
+    update_folder,
+)
 from intervals_mcp_server.tools.sport_settings import (  # pylint: disable=wrong-import-position  # noqa: E402
     apply_sport_settings,
     create_sport_settings,
@@ -96,6 +105,13 @@ from intervals_mcp_server.tools.sport_settings import (  # pylint: disable=wrong
     update_sport_settings,
 )
 from intervals_mcp_server.tools.wellness import get_wellness_data  # pylint: disable=wrong-import-position  # noqa: E402
+from intervals_mcp_server.tools.workouts import (  # pylint: disable=wrong-import-position  # noqa: E402
+    create_workout,
+    delete_workout,
+    get_workout,
+    list_workouts,
+    update_workout,
+)
 from intervals_mcp_server.tools.custom_items import (  # pylint: disable=wrong-import-position  # noqa: E402
     create_custom_item,
     delete_custom_item,
@@ -140,6 +156,17 @@ __all__ = [
     "create_sport_settings",
     "update_sport_settings",
     "apply_sport_settings",
+    # tools/workouts.py
+    "list_workouts",
+    "get_workout",
+    "create_workout",
+    "update_workout",
+    "delete_workout",
+    # tools/folders.py
+    "list_folders",
+    "create_folder",
+    "update_folder",
+    "delete_folder",
 ]
 
 

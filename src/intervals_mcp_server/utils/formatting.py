@@ -119,14 +119,33 @@ File Type: {activity.get("file_type", "N/A")}
 
 
 def format_workout(workout: dict[str, Any]) -> str:
-    """Format a workout into a readable string."""
+    """Format a workout into a readable string.
+
+    Tolerates both the hand-curated test shape (``sport``, ``duration``, ``tss``,
+    ``intervals``) and the Intervals.icu API shape (``type``, ``moving_time``,
+    ``icu_training_load``, ``workout_doc``).
+    """
+    sport = workout.get("sport") or workout.get("type") or "Unknown"
+    duration = workout.get("duration") or workout.get("moving_time") or 0
+    load = workout.get("tss")
+    if load is None:
+        load = workout.get("icu_training_load", "N/A")
+    intervals: Any = workout.get("intervals")
+    if intervals is None:
+        doc = workout.get("workout_doc") or {}
+        if isinstance(doc, dict):
+            intervals = doc.get("steps") or []
+        else:
+            intervals = []
+    step_count = len(intervals) if isinstance(intervals, list) else 0
     return f"""
 Workout: {workout.get("name", "Unnamed")}
+ID: {workout.get("id", "N/A")}
 Description: {workout.get("description", "No description")}
-Sport: {workout.get("sport", "Unknown")}
-Duration: {workout.get("duration", 0)} seconds
-TSS: {workout.get("tss", "N/A")}
-Intervals: {len(workout.get("intervals", []))}
+Sport: {sport}
+Duration: {duration} seconds
+TSS: {load}
+Intervals: {step_count}
 """
 
 
@@ -706,4 +725,24 @@ def format_sport_settings_details(settings: dict[str, Any]) -> str:
         _format_zones("Pace zones", settings.get("pace_zones"), settings.get("pace_zone_names"), ""),
         f"Sweet spot: {_opt(settings.get('sweet_spot_min'))}–{_opt(settings.get('sweet_spot_max'))}",
     ]
+    return "\n".join(lines) + "\n"
+
+
+def format_folder_summary(folders: list[dict[str, Any]]) -> str:
+    """Format a list of workout folders / plans."""
+    if not folders:
+        return "No folders.\n"
+    lines = [f"Folders ({len(folders)}):", ""]
+    for folder in folders:
+        if not isinstance(folder, dict):
+            continue
+        sports = folder.get("activity_types") or []
+        sport = ", ".join(str(s) for s in sports) if isinstance(sports, list) else str(sports)
+        lines.append(
+            f"- id={folder.get('id', '?')}  "
+            f"name={folder.get('name', 'Unnamed')!r}  "
+            f"type={folder.get('type', 'N/A')}  "
+            f"workouts={folder.get('num_workouts', 0)}  "
+            f"sport={sport or 'N/A'}"
+        )
     return "\n".join(lines) + "\n"

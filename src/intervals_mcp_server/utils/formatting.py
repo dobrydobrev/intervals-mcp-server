@@ -560,3 +560,146 @@ Cadence: Avg {group.get("average_cadence", 0)}, Max {group.get("max_cadence", 0)
 """
 
     return result
+
+
+def _opt(value: Any, suffix: str = "") -> str:
+    """Render an optional scalar with a trailing unit suffix, or 'N/A'."""
+    if value is None or value == "":
+        return "N/A"
+    return f"{value}{suffix}"
+
+
+def format_athlete_summary(athlete: dict[str, Any]) -> str:
+    """Format core athlete identity + training-relevant fields."""
+    name = athlete.get("name") or " ".join(
+        filter(None, [athlete.get("firstname"), athlete.get("lastname")])
+    ) or "Unknown"
+    weight = athlete.get("icu_weight") or athlete.get("weight")
+    types = athlete.get("icu_type_settings") or []
+    sports = ", ".join(
+        sorted({t.get("type") for t in types if isinstance(t, dict) and t.get("type")})
+    ) or "N/A"
+
+    return f"""Athlete: {name}
+ID: {_opt(athlete.get("id"))}
+Sex: {_opt(athlete.get("sex"))}
+Weight: {_opt(weight, " kg")}
+Height: {_opt(athlete.get("height"), " m")}
+Resting HR: {_opt(athlete.get("icu_resting_hr"), " bpm")}
+Timezone: {_opt(athlete.get("timezone"))}
+Country: {_opt(athlete.get("country"))}
+Training plan: {_opt(athlete.get("training_plan_id"))}
+Plan start: {_opt(athlete.get("training_plan_start_date"))}
+Configured sports: {sports}
+Bio: {_opt(athlete.get("bio"))}
+"""
+
+
+def format_athlete_profile(profile: dict[str, Any]) -> str:
+    """Format the GET /athlete/{id}/profile response.
+
+    Profile contains the athlete object plus shared folders and custom items.
+    """
+    athlete = profile.get("athlete") or {}
+    shared_folders = profile.get("sharedFolders") or []
+    custom_items = profile.get("customItems") or []
+
+    lines = ["Athlete Profile:", "", format_athlete_summary(athlete).rstrip(), ""]
+    lines.append(f"Shared folders ({len(shared_folders)}):")
+    for folder in shared_folders[:20]:
+        if isinstance(folder, dict):
+            lines.append(f"  - {folder.get('name', 'Unnamed')} (id={folder.get('id')})")
+    lines.append("")
+    lines.append(f"Custom items ({len(custom_items)}):")
+    for item in custom_items[:20]:
+        if isinstance(item, dict):
+            lines.append(f"  - {item.get('name', 'Unnamed')} (id={item.get('id')})")
+    return "\n".join(lines) + "\n"
+
+
+def format_training_plan(plan: dict[str, Any]) -> str:
+    """Format an AthleteTrainingPlan record."""
+    folder = plan.get("training_plan") or {}
+    folder_name = folder.get("name") if isinstance(folder, dict) else None
+    return f"""Training Plan:
+Plan id: {_opt(plan.get("training_plan_id"))}
+Alias: {_opt(plan.get("training_plan_alias"))}
+Folder: {_opt(folder_name)}
+Athlete: {_opt(plan.get("athlete_id"))}
+Start date: {_opt(plan.get("training_plan_start_date"))}
+Last applied: {_opt(plan.get("training_plan_last_applied"))}
+Timezone: {_opt(plan.get("timezone"))}
+"""
+
+
+def format_fitness_model_events(events: list[dict[str, Any]]) -> str:
+    """Format the list of fitness-model events (chronological)."""
+    if not events:
+        return "No fitness-model events in this range.\n"
+    lines = [f"Fitness model events ({len(events)}):", ""]
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        date = event.get("start_date_local") or event.get("date") or "?"
+        category = event.get("category") or event.get("type") or "?"
+        name = event.get("name") or ""
+        lines.append(f"- {date}  [{category}]  {name}".rstrip())
+    return "\n".join(lines) + "\n"
+
+
+def format_sport_settings_summary(settings_list: list[dict[str, Any]]) -> str:
+    """One-line per sport settings record — id, sport types, FTP/LTHR if present."""
+    if not settings_list:
+        return "No sport settings configured.\n"
+    lines = [f"Sport Settings ({len(settings_list)}):", ""]
+    for settings in settings_list:
+        if not isinstance(settings, dict):
+            continue
+        sport_types = settings.get("types") or []
+        if isinstance(sport_types, list):
+            sport = ", ".join(str(t) for t in sport_types) or "?"
+        else:
+            sport = str(sport_types)
+        lines.append(
+            f"- id={settings.get('id', '?')}  sport={sport}  "
+            f"FTP={settings.get('ftp', 'N/A')}  LTHR={settings.get('lthr', 'N/A')}  "
+            f"MaxHR={settings.get('max_hr', 'N/A')}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _format_zones(label: str, zones: Any, names: Any, unit: str) -> str:
+    """Render zone boundaries with optional names."""
+    if not isinstance(zones, list) or not zones:
+        return f"{label}: N/A"
+    name_list = names if isinstance(names, list) else []
+    parts: list[str] = []
+    for i, boundary in enumerate(zones):
+        name = name_list[i] if i < len(name_list) else f"Z{i + 1}"
+        parts.append(f"{name}={boundary}{unit}")
+    return f"{label}: " + ", ".join(parts)
+
+
+def format_sport_settings_details(settings: dict[str, Any]) -> str:
+    """Full sport-settings record — zones, thresholds, pace units."""
+    sport_types = settings.get("types") or []
+    if isinstance(sport_types, list):
+        sport = ", ".join(str(t) for t in sport_types) or "Unknown"
+    else:
+        sport = str(sport_types)
+
+    lines = [
+        f"Sport Settings: {sport}",
+        f"ID: {_opt(settings.get('id'))}",
+        f"Athlete: {_opt(settings.get('athlete_id'))}",
+        f"FTP: {_opt(settings.get('ftp'), 'W')}  (indoor: {_opt(settings.get('indoor_ftp'), 'W')})",
+        f"LTHR: {_opt(settings.get('lthr'), ' bpm')}  Max HR: {_opt(settings.get('max_hr'), ' bpm')}",
+        f"Threshold pace: {_opt(settings.get('threshold_pace'), ' m/s')}",
+        f"Pace units: {_opt(settings.get('pace_units'))}",
+        f"W': {_opt(settings.get('w_prime'), ' J')}  Pmax: {_opt(settings.get('p_max'), 'W')}",
+        _format_zones("Power zones", settings.get("power_zones"), settings.get("power_zone_names"), "W"),
+        _format_zones("HR zones", settings.get("hr_zones"), settings.get("hr_zone_names"), " bpm"),
+        _format_zones("Pace zones", settings.get("pace_zones"), settings.get("pace_zone_names"), ""),
+        f"Sweet spot: {_opt(settings.get('sweet_spot_min'))}–{_opt(settings.get('sweet_spot_max'))}",
+    ]
+    return "\n".join(lines) + "\n"

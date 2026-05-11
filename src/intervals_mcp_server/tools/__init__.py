@@ -70,7 +70,12 @@ from intervals_mcp_server.tools.sport_settings import (  # noqa: F401
     list_sport_settings,
     update_sport_settings,
 )
-from intervals_mcp_server.tools.wellness import get_wellness_data  # noqa: F401
+from intervals_mcp_server.tools.wellness import (  # noqa: F401
+    bulk_update_wellness,
+    get_wellness_data,
+    get_wellness_day,
+    set_wellness_day,
+)
 from intervals_mcp_server.tools.workouts import (  # noqa: F401
     create_workout,
     delete_workout,
@@ -159,4 +164,8 @@ __all__ = [
     "search_activities_full",
     "interval_search_activities",
     "get_activities_around",
+    # tools/wellness.py additions
+    "get_wellness_day",
+    "set_wellness_day",
+    "bulk_update_wellness",
 ]

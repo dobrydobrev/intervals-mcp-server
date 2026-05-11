@@ -42,7 +42,8 @@ Usage:
             delete_events_by_date_range, bulk_create_events, mark_event_done,
             apply_plan_to_calendar, bulk_delete_events, duplicate_events,
             list_workout_tags, list_event_tags.
-        Wellness: get_wellness_data.
+        Wellness: get_wellness_data, get_wellness_day, set_wellness_day,
+            bulk_update_wellness.
         Custom items: get_custom_items, get_custom_item_by_id, create_custom_item,
             update_custom_item, delete_custom_item.
 
@@ -138,7 +139,12 @@ from intervals_mcp_server.tools.sport_settings import (  # pylint: disable=wrong
     list_sport_settings,
     update_sport_settings,
 )
-from intervals_mcp_server.tools.wellness import get_wellness_data  # pylint: disable=wrong-import-position  # noqa: E402
+from intervals_mcp_server.tools.wellness import (  # pylint: disable=wrong-import-position  # noqa: E402
+    bulk_update_wellness,
+    get_wellness_data,
+    get_wellness_day,
+    set_wellness_day,
+)
 from intervals_mcp_server.tools.workouts import (  # pylint: disable=wrong-import-position  # noqa: E402
     create_workout,
     delete_workout,
@@ -227,6 +233,10 @@ __all__ = [
     "search_activities_full",
     "interval_search_activities",
     "get_activities_around",
+    # tools/wellness.py additions
+    "get_wellness_day",
+    "set_wellness_day",
+    "bulk_update_wellness",
 ]
 
 

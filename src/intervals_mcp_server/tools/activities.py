@@ -380,3 +380,350 @@ async def add_activity_message(
     if msg_id is not None:
         return f"Successfully added message (ID: {msg_id}) to activity {activity_id}."
     return f"Message appears to have been added to activity {activity_id}, but no ID was returned. Please verify manually."
+
+
+# ----------------------------------------------------------------------------
+# Activity-level performance, search, and bulk-fetch tools (Tier 3).
+# ----------------------------------------------------------------------------
+
+# Imports kept local to avoid touching the top-of-file import block.
+from intervals_mcp_server.utils.formatting import (  # noqa: E402  pylint: disable=wrong-import-position
+    format_activity_search_hit,
+    format_best_efforts,
+    format_hr_curve,
+    format_interval_match,
+    format_interval_stats,
+    format_pace_curve,
+    format_power_curve,
+    format_power_vs_hr,
+    format_weather_summary,
+)
+
+
+@mcp.tool()
+async def get_activity_best_efforts(activity_id: str, api_key: str | None = None) -> str:
+    """Find best efforts in an activity (durations + averages).
+
+    Args:
+        activity_id: Intervals.icu activity ID.
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/best-efforts", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching best efforts: {result.get('message')}"
+    return format_best_efforts(result if isinstance(result, (dict, list)) else {})
+
+
+@mcp.tool()
+async def get_activity_power_curve(
+    activity_id: str,
+    api_key: str | None = None,
+    summary_only: bool = True,
+) -> str:
+    """Get the activity's power curve. summary_only emits coach-canonical buckets.
+
+    Args:
+        activity_id: Intervals.icu activity ID.
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+        summary_only: When True (default) emit ~10 coach-canonical durations;
+            False emits every (secs, value) pair from the API response.
+    """
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/power-curve.json", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching power curve: {result.get('message')}"
+    if not isinstance(result, dict):
+        return f"No power curve for activity {activity_id}."
+    return format_power_curve(result, summary_only=summary_only)
+
+
+@mcp.tool()
+async def get_activity_hr_curve(
+    activity_id: str,
+    api_key: str | None = None,
+    summary_only: bool = True,
+) -> str:
+    """Get the activity's HR curve. See get_activity_power_curve."""
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/hr-curve.json", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching hr curve: {result.get('message')}"
+    if not isinstance(result, dict):
+        return f"No HR curve for activity {activity_id}."
+    return format_hr_curve(result, summary_only=summary_only)
+
+
+@mcp.tool()
+async def get_activity_pace_curve(
+    activity_id: str,
+    api_key: str | None = None,
+    summary_only: bool = True,
+) -> str:
+    """Get the activity's pace curve (values in m/s, rendered with min/km)."""
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/pace-curve.json", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching pace curve: {result.get('message')}"
+    if not isinstance(result, dict):
+        return f"No pace curve for activity {activity_id}."
+    return format_pace_curve(result, summary_only=summary_only)
+
+
+@mcp.tool()
+async def get_activity_power_vs_hr(
+    activity_id: str,
+    api_key: str | None = None,
+    summary_only: bool = True,
+) -> str:
+    """Get the activity's power-vs-HR data (efficiency / cardiac-drift).
+
+    Args:
+        activity_id: Intervals.icu activity ID.
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+        summary_only: When True (default) emit ~10 down-sampled HR/power pairs.
+    """
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/power-vs-hr.json", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching power vs hr: {result.get('message')}"
+    if not isinstance(result, dict):
+        return f"No power-vs-HR data for activity {activity_id}."
+    return format_power_vs_hr(result, summary_only=summary_only)
+
+
+@mcp.tool()
+async def get_activity_interval_stats(
+    activity_id: str,
+    api_key: str | None = None,
+    start_secs: int | None = None,
+    end_secs: int | None = None,
+) -> str:
+    """Compute interval-like stats over a slice of an activity.
+
+    Args:
+        activity_id: Intervals.icu activity ID.
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+        start_secs: Start offset in seconds (optional).
+        end_secs: End offset in seconds (optional).
+    """
+    params: dict[str, Any] = {}
+    if start_secs is not None:
+        params["start_secs"] = start_secs
+    if end_secs is not None:
+        params["end_secs"] = end_secs
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/interval-stats",
+        api_key=api_key,
+        params=params or None,
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching interval stats: {result.get('message')}"
+    if not isinstance(result, dict):
+        return f"No interval stats for activity {activity_id}."
+    return format_interval_stats(result)
+
+
+@mcp.tool()
+async def get_activity_weather_summary(activity_id: str, api_key: str | None = None) -> str:
+    """Get the activity's weather summary (temp, wind, humidity, precip)."""
+    result = await make_intervals_request(
+        url=f"/activity/{activity_id}/weather-summary", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching weather summary: {result.get('message')}"
+    if not isinstance(result, dict):
+        return f"No weather data for activity {activity_id}."
+    return format_weather_summary(result)
+
+
+@mcp.tool()
+async def get_activities_by_ids(
+    ids: str,
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+) -> str:
+    """Fetch multiple activities by id in a single round-trip.
+
+    Args:
+        ids: Comma-separated list of activity IDs (e.g. "i1,i2,i3").
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/activities/{ids}", api_key=api_key
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching activities: {result.get('message')}"
+    activities = result if isinstance(result, list) else []
+    if not activities:
+        return f"No activities found for ids {ids}.\n"
+    return _format_activities_response(activities, athlete_id_to_use, include_unnamed=True)
+
+
+@mcp.tool()
+async def search_activities(
+    query: str,
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+    limit: int = 20,
+) -> str:
+    """Search activities by name (case-insensitive) or tag (#tag-name).
+
+    Args:
+        query: Search query. Prefix with "#" for exact tag match.
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+        limit: Max results to return (default 20).
+    """
+    return await _search_activities(
+        athlete_id, api_key, query, limit, endpoint="search", full=False
+    )
+
+
+@mcp.tool()
+async def search_activities_full(
+    query: str,
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+    limit: int = 20,
+) -> str:
+    """Search activities and return full activity records (heavier than search_activities)."""
+    return await _search_activities(
+        athlete_id, api_key, query, limit, endpoint="search-full", full=True
+    )
+
+
+async def _search_activities(
+    athlete_id: str | None,
+    api_key: str | None,
+    query: str,
+    limit: int,
+    endpoint: str,
+    full: bool,
+) -> str:
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/activities/{endpoint}",
+        api_key=api_key,
+        params={"q": query, "limit": limit},
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error searching activities: {result.get('message')}"
+    hits = result if isinstance(result, list) else []
+    if not hits:
+        return f"No matches for {query!r}.\n"
+    lines = [f"Activity search results ({len(hits)}):", ""]
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        if full:
+            lines.append(format_activity_summary(hit).strip())
+            lines.append("")
+        else:
+            lines.append(format_activity_search_hit(hit))
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def interval_search_activities(
+    min_secs: int,
+    max_secs: int,
+    min_intensity: int,
+    max_intensity: int,
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    sport_type: str | None = None,
+) -> str:
+    """Find activities containing intervals matching duration + intensity bounds.
+
+    Args:
+        min_secs: Minimum interval duration in seconds.
+        max_secs: Maximum interval duration in seconds.
+        min_intensity: Minimum intensity %.
+        max_intensity: Maximum intensity %.
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+        start_date: Optional YYYY-MM-DD.
+        end_date: Optional YYYY-MM-DD.
+        sport_type: Optional sport filter (e.g. "Ride", "Run").
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+    params: dict[str, Any] = {
+        "minSecs": min_secs,
+        "maxSecs": max_secs,
+        "minIntensity": min_intensity,
+        "maxIntensity": max_intensity,
+    }
+    if start_date is not None:
+        params["oldest"] = start_date
+    if end_date is not None:
+        params["newest"] = end_date
+    if sport_type is not None:
+        params["type"] = sport_type
+
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/activities/interval-search",
+        api_key=api_key,
+        params=params,
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error searching intervals: {result.get('message')}"
+    matches = result if isinstance(result, list) else []
+    if not matches:
+        return "No matching intervals found.\n"
+    lines = [f"Matching intervals ({len(matches)}):", ""]
+    for match in matches:
+        if isinstance(match, dict):
+            lines.append(format_interval_match(match))
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def get_activities_around(
+    activity_id: str,
+    athlete_id: str | None = None,
+    api_key: str | None = None,
+    route_id: int | None = None,
+    limit: int = 30,
+) -> str:
+    """List activities near another activity, closest first.
+
+    Args:
+        activity_id: The activity at the centre (not included in results).
+        athlete_id: Intervals.icu athlete ID (defaults to ATHLETE_ID env var).
+        api_key: Intervals.icu API key (defaults to API_KEY env var).
+        route_id: Optional route filter — only return activities on this route.
+        limit: Max activities to return (default 30).
+    """
+    athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
+    if error_msg:
+        return error_msg
+    params: dict[str, Any] = {"activity_id": activity_id, "limit": limit}
+    if route_id is not None:
+        params["route_id"] = route_id
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/activities-around",
+        api_key=api_key,
+        params=params,
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error fetching activities around: {result.get('message')}"
+    activities = result if isinstance(result, list) else []
+    if not activities:
+        return f"No activities found near {activity_id}.\n"
+    return _format_activities_response(activities, athlete_id_to_use, include_unnamed=True)

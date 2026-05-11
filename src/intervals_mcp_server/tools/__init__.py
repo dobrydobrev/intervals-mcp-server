@@ -9,10 +9,24 @@ from mcp.server.fastmcp import FastMCP  # pylint: disable=import-error
 # Import all tools for re-export
 # Note: Tools register themselves via @mcp.tool() decorators when imported
 from intervals_mcp_server.tools.activities import (  # noqa: F401
+    add_activity_message,
     get_activities,
+    get_activities_around,
+    get_activities_by_ids,
+    get_activity_best_efforts,
     get_activity_details,
+    get_activity_hr_curve,
+    get_activity_interval_stats,
     get_activity_intervals,
+    get_activity_messages,
+    get_activity_pace_curve,
+    get_activity_power_curve,
+    get_activity_power_vs_hr,
     get_activity_streams,
+    get_activity_weather_summary,
+    interval_search_activities,
+    search_activities,
+    search_activities_full,
 )
 from intervals_mcp_server.tools.curves import (  # noqa: F401
     get_athlete_hr_curves,
@@ -132,4 +146,17 @@ __all__ = [
     "get_athlete_hr_curves",
     "get_athlete_pace_curves",
     "get_mmp_model",
+    # tools/activities.py additions
+    "get_activity_best_efforts",
+    "get_activity_power_curve",
+    "get_activity_hr_curve",
+    "get_activity_pace_curve",
+    "get_activity_power_vs_hr",
+    "get_activity_interval_stats",
+    "get_activity_weather_summary",
+    "get_activities_by_ids",
+    "search_activities",
+    "search_activities_full",
+    "interval_search_activities",
+    "get_activities_around",
 ]

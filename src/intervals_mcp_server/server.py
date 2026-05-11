@@ -22,7 +22,12 @@ Usage:
 
     MCP tools provided:
         Activities: get_activities, get_activity_details, get_activity_intervals,
-            get_activity_streams, get_activity_messages, add_activity_message.
+            get_activity_streams, get_activity_messages, add_activity_message,
+            get_activity_best_efforts, get_activity_power_curve,
+            get_activity_hr_curve, get_activity_pace_curve, get_activity_power_vs_hr,
+            get_activity_interval_stats, get_activity_weather_summary,
+            get_activities_by_ids, search_activities, search_activities_full,
+            interval_search_activities, get_activities_around.
         Athlete state: get_athlete, update_athlete, get_athlete_profile,
             get_training_plan, set_training_plan, apply_plan_changes,
             get_fitness_model_events.
@@ -74,10 +79,22 @@ config = get_config()
 from intervals_mcp_server.tools.activities import (  # pylint: disable=wrong-import-position  # noqa: E402
     add_activity_message,
     get_activities,
+    get_activities_around,
+    get_activities_by_ids,
+    get_activity_best_efforts,
     get_activity_details,
+    get_activity_hr_curve,
+    get_activity_interval_stats,
     get_activity_intervals,
     get_activity_messages,
+    get_activity_pace_curve,
+    get_activity_power_curve,
+    get_activity_power_vs_hr,
     get_activity_streams,
+    get_activity_weather_summary,
+    interval_search_activities,
+    search_activities,
+    search_activities_full,
 )
 from intervals_mcp_server.tools.curves import (  # pylint: disable=wrong-import-position  # noqa: E402
     get_athlete_hr_curves,
@@ -197,6 +214,19 @@ __all__ = [
     "get_athlete_hr_curves",
     "get_athlete_pace_curves",
     "get_mmp_model",
+    # tools/activities.py additions
+    "get_activity_best_efforts",
+    "get_activity_power_curve",
+    "get_activity_hr_curve",
+    "get_activity_pace_curve",
+    "get_activity_power_vs_hr",
+    "get_activity_interval_stats",
+    "get_activity_weather_summary",
+    "get_activities_by_ids",
+    "search_activities",
+    "search_activities_full",
+    "interval_search_activities",
+    "get_activities_around",
 ]
 
 

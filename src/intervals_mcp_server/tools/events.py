@@ -80,31 +80,6 @@ def _handle_event_response(
     return f"Event {action} successfully at {start_date}"
 
 
-async def _delete_events_list(
-    athlete_id: str, api_key: str | None, events: list[dict[str, Any]]
-) -> list[int | str | None]:
-    """Delete a list of events and return IDs of failed deletions.
-
-    Args:
-        athlete_id: The athlete ID.
-        api_key: Optional API key.
-        events: List of event dictionaries to delete.
-
-    Returns:
-        List of event IDs that failed to delete.
-    """
-    failed_events: list[int | str | None] = []
-    for event in events:
-        result = await make_intervals_request(
-            url=f"/athlete/{athlete_id}/events/{event.get('id')}",
-            api_key=api_key,
-            method="DELETE",
-        )
-        if isinstance(result, dict) and "error" in result:
-            failed_events.append(event.get("id"))
-    return failed_events
-
-
 @mcp.tool()
 async def get_events(
     athlete_id: str | None = None,
@@ -224,58 +199,54 @@ async def delete_event(
     return json.dumps(result, indent=2)
 
 
-async def _fetch_events_for_deletion(
-    athlete_id: str, api_key: str | None, start_date: str, end_date: str
-) -> tuple[list[dict[str, Any]], str | None]:
-    """Fetch events for deletion and return them with any error message.
-
-    Args:
-        athlete_id: The athlete ID.
-        api_key: Optional API key.
-        start_date: Start date in YYYY-MM-DD format.
-        end_date: End date in YYYY-MM-DD format.
-
-    Returns:
-        Tuple of (events_list, error_message). error_message is None if successful.
-    """
-    params = {"oldest": validate_date(start_date), "newest": validate_date(end_date)}
-    result = await make_intervals_request(
-        url=f"/athlete/{athlete_id}/events", api_key=api_key, params=params
-    )
-    if isinstance(result, dict) and "error" in result:
-        return [], f"Error deleting events: {result.get('message')}"
-    events = result if isinstance(result, list) else []
-    return events, None
-
-
 @mcp.tool()
 async def delete_events_by_date_range(
     start_date: str,
     end_date: str,
     athlete_id: str | None = None,
     api_key: str | None = None,
+    category: str = "WORKOUT",
+    created_by_id: str | None = None,
 ) -> str:
     """Delete events for an athlete from Intervals.icu in the specified date range.
+
+    Uses the native DELETE /athlete/{id}/events range endpoint, which accepts
+    a category filter (required by the spec — defaults to WORKOUT so planned
+    workouts are deleted while races and notes are left untouched).
 
     Args:
         athlete_id: The Intervals.icu athlete ID (optional, will use ATHLETE_ID from .env if not provided)
         api_key: The Intervals.icu API key (optional, will use API_KEY from .env if not provided)
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
+        start_date: Oldest date to delete (YYYY-MM-DD)
+        end_date: Newest date to delete (YYYY-MM-DD, inclusive)
+        category: Comma-separated list of event categories to delete (e.g. "WORKOUT", "WORKOUT,NOTE"). Defaults to "WORKOUT".
+        created_by_id: If provided, only events created by this athlete id are deleted.
     """
     athlete_id_to_use, error_msg = resolve_athlete_id(athlete_id, config.athlete_id)
     if error_msg:
         return error_msg
 
-    events, error_msg = await _fetch_events_for_deletion(
-        athlete_id_to_use, api_key, start_date, end_date
-    )
-    if error_msg:
-        return error_msg
+    params: dict[str, Any] = {
+        "oldest": validate_date(start_date),
+        "newest": validate_date(end_date),
+        "category": category,
+    }
+    if created_by_id is not None:
+        params["createdById"] = created_by_id
 
-    failed_events = await _delete_events_list(athlete_id_to_use, api_key, events)
-    deleted_count = len(events) - len(failed_events)
-    return f"Deleted {deleted_count} events. Failed to delete {len(failed_events)} events: {failed_events}"
+    result = await make_intervals_request(
+        url=f"/athlete/{athlete_id_to_use}/events",
+        api_key=api_key,
+        params=params,
+        method="DELETE",
+    )
+    if isinstance(result, dict) and "error" in result:
+        return f"Error deleting events: {result.get('message')}"
+
+    return (
+        f"Deleted events for athlete {athlete_id_to_use} "
+        f"({category}) from {start_date} to {end_date}."
+    )
 
 
 @mcp.tool()

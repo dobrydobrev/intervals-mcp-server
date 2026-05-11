@@ -28,6 +28,7 @@ os.environ.setdefault("ATHLETE_ID", "i1")
 from intervals_mcp_server.server import (  # pylint: disable=wrong-import-position
     add_activity_message,
     add_or_update_event,
+    delete_events_by_date_range,
     get_activities,
     get_activity_details,
     get_activity_intervals,
@@ -144,6 +145,80 @@ def test_get_event_by_id(monkeypatch):
     assert "Event Details:" in result
     assert "Test Event" in result
     assert captured_url["url"] == "/athlete/1/events/e1"
+
+
+def test_delete_events_by_date_range(monkeypatch):
+    """delete_events_by_date_range issues a single DELETE on the collection."""
+    captured: dict[str, object] = {}
+
+    async def fake_request(*_args, **kwargs):
+        captured["url"] = kwargs.get("url", "")
+        captured["method"] = kwargs.get("method", "")
+        captured["params"] = kwargs.get("params", {})
+        return {}
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr("intervals_mcp_server.tools.events.make_intervals_request", fake_request)
+    result = asyncio.run(
+        delete_events_by_date_range(
+            start_date="2024-01-01",
+            end_date="2024-01-07",
+            athlete_id="1",
+        )
+    )
+    assert captured["url"] == "/athlete/1/events"
+    assert captured["method"] == "DELETE"
+    assert captured["params"] == {
+        "oldest": "2024-01-01",
+        "newest": "2024-01-07",
+        "category": "WORKOUT",
+    }
+    assert "Deleted events" in result
+    assert "WORKOUT" in result
+
+
+def test_delete_events_by_date_range_category_and_creator(monkeypatch):
+    """category and created_by_id flow through to the request params."""
+    captured: dict[str, object] = {}
+
+    async def fake_request(*_args, **kwargs):
+        captured["params"] = kwargs.get("params", {})
+        return {}
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr("intervals_mcp_server.tools.events.make_intervals_request", fake_request)
+    asyncio.run(
+        delete_events_by_date_range(
+            start_date="2024-01-01",
+            end_date="2024-01-07",
+            athlete_id="1",
+            category="WORKOUT,NOTE",
+            created_by_id="42",
+        )
+    )
+    params = captured["params"]
+    assert isinstance(params, dict)
+    assert params["category"] == "WORKOUT,NOTE"
+    assert params["createdById"] == "42"
+
+
+def test_delete_events_by_date_range_error(monkeypatch):
+    """API error is surfaced as an Error string."""
+
+    async def fake_request(*_args, **_kwargs):
+        return {"error": True, "message": "Forbidden"}
+
+    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
+    monkeypatch.setattr("intervals_mcp_server.tools.events.make_intervals_request", fake_request)
+    result = asyncio.run(
+        delete_events_by_date_range(
+            start_date="2024-01-01",
+            end_date="2024-01-07",
+            athlete_id="1",
+        )
+    )
+    assert "Error deleting events" in result
+    assert "Forbidden" in result
 
 
 def test_get_wellness_data(monkeypatch):

@@ -44,6 +44,10 @@ from intervals_mcp_server.server import (  # pylint: disable=wrong-import-positi
     delete_custom_item,
 )
 from tests.sample_data import INTERVALS_DATA  # pylint: disable=wrong-import-position
+from tests._tool_helpers import (  # pylint: disable=wrong-import-position
+    assert_substrings,
+    run_tool,
+)
 
 
 def test_get_activities(monkeypatch):
@@ -121,10 +125,7 @@ def test_get_events(monkeypatch):
 
 
 def test_get_event_by_id(monkeypatch):
-    """
-    Test get_event_by_id returns a formatted string with event details for a given event ID.
-    Also asserts the request URL uses the spec-compliant plural /events/ path.
-    """
+    """get_event_by_id formats event details and uses the plural /events/ path."""
     event = {
         "id": "e1",
         "date": "2024-01-01",
@@ -132,19 +133,17 @@ def test_get_event_by_id(monkeypatch):
         "description": "desc",
         "race": True,
     }
-    captured_url: dict[str, str] = {}
-
-    async def fake_request(*_args, **kwargs):
-        captured_url["url"] = kwargs.get("url", "")
-        return event
-
-    # Patch in both api.client and tools modules to ensure it works
-    monkeypatch.setattr("intervals_mcp_server.api.client.make_intervals_request", fake_request)
-    monkeypatch.setattr("intervals_mcp_server.tools.events.make_intervals_request", fake_request)
-    result = asyncio.run(get_event_by_id("e1", athlete_id="1"))
-    assert "Event Details:" in result
-    assert "Test Event" in result
-    assert captured_url["url"] == "/athlete/1/events/e1"
+    captured: dict = {}
+    result = run_tool(
+        monkeypatch,
+        get_event_by_id,
+        "events",
+        kwargs={"event_id": "e1", "athlete_id": "1"},
+        fake_response=event,
+        capture=captured,
+    )
+    assert_substrings(result, ["Event Details:", "Test Event"])
+    assert captured["last"]["url"] == "/athlete/1/events/e1"
 
 
 def test_delete_events_by_date_range(monkeypatch):

@@ -122,6 +122,7 @@ def test_get_events(monkeypatch):
 def test_get_event_by_id(monkeypatch):
     """
     Test get_event_by_id returns a formatted string with event details for a given event ID.
+    Also asserts the request URL uses the spec-compliant plural /events/ path.
     """
     event = {
         "id": "e1",
@@ -130,8 +131,10 @@ def test_get_event_by_id(monkeypatch):
         "description": "desc",
         "race": True,
     }
+    captured_url: dict[str, str] = {}
 
-    async def fake_request(*_args, **_kwargs):
+    async def fake_request(*_args, **kwargs):
+        captured_url["url"] = kwargs.get("url", "")
         return event
 
     # Patch in both api.client and tools modules to ensure it works
@@ -140,6 +143,7 @@ def test_get_event_by_id(monkeypatch):
     result = asyncio.run(get_event_by_id("e1", athlete_id="1"))
     assert "Event Details:" in result
     assert "Test Event" in result
+    assert captured_url["url"] == "/athlete/1/events/e1"
 
 
 def test_get_wellness_data(monkeypatch):

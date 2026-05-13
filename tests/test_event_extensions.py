@@ -50,6 +50,7 @@ def test_bulk_create_events_summary(monkeypatch):
     assert "VO2" in result
     assert captured["last"]["url"] == "/athlete/1/events/bulk"
     assert captured["last"]["method"] == "POST"
+    assert captured["last"]["data"][0]["category"] == "WORKOUT"
 
 
 def test_mark_event_done(monkeypatch):

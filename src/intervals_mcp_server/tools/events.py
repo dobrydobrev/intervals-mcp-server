@@ -393,11 +393,12 @@ async def bulk_create_events(
     if error_msg:
         return error_msg
 
+    normalized = [{"category": "WORKOUT", **ev} for ev in events]
     result = await make_intervals_request(
         url=f"/athlete/{athlete_id_to_use}/events/bulk",
         api_key=api_key,
         method="POST",
-        data=events,  # type: ignore[arg-type]
+        data=normalized,  # type: ignore[arg-type]
     )
     if isinstance(result, dict) and "error" in result:
         return f"Error creating events: {result.get('message')}"
